@@ -6,6 +6,7 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import io.jsonwebtoken.Claims;
@@ -17,13 +18,24 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
+@Service
 public class JwtService {
 
+    @Value("${jwt.secret}")
+    private String secretKey;
+
+    @Value("${jwt.expiration}")
+    private long jwtExpirationMs;
     private Key signInKey;
 
     @PostConstruct
     public void init() {
-        String secretKey = "H7AAPJLcUMnJeJcznRsUtgFoZT_8Fc2Cmy8AX04T52Y="; // Get from environment variable
+        try {
+            byte[] keyBytes = Decoders.BASE64URL.decode(secretKey);
+            this.signInKey = Keys.hmacShaKeyFor(keyBytes);
+        } catch (IllegalArgumentException e) {
+            throw new RuntimeException("Error decoding JWT secret key: " + e.getMessage(), e);
+        }
 
         try {
             byte[] keyBytes = Decoders.BASE64URL.decode(secretKey); // Decode the key
@@ -61,7 +73,7 @@ public class JwtService {
                 .setClaims(extraClaims)
                 .setSubject(userDetails.getUsername())
                 .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 24))
+                .setExpiration(new Date(System.currentTimeMillis() + jwtExpirationMs))
                 .signWith(signInKey, SignatureAlgorithm.HS256)
                 .compact();
     }

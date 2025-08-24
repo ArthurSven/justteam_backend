@@ -1,18 +1,19 @@
 package com.devapps.just_team_backend.controller;
 
-import com.devapps.just_team_backend.model.user.UserAuthRequest;
-import com.devapps.just_team_backend.model.user.UserAuthResponse;
-import com.devapps.just_team_backend.model.user.UserRequest;
-import com.devapps.just_team_backend.model.user.UserResponse;
+import com.devapps.just_team_backend.model.user.*;
 import com.devapps.just_team_backend.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/user")
@@ -45,19 +46,20 @@ public class UserController {
 
             UserAuthResponse authResponse = userService.login(request);
 
-            // 2. Set HTTP-only cookie (HTTP concern)
+            // Create JWT cookie with consistent attributes
             ResponseCookie cookie = ResponseCookie.from("jwt", authResponse.getToken())
                     .httpOnly(true)
-                    .secure(true)
+                    .secure(false) // Set to false for development (http://localhost)
                     .sameSite("Lax")
                     .path("/")
-                    .maxAge(7 * 24 * 60 * 60)
+                    .maxAge(7 * 24 * 60 * 60) // 7 days
                     .build();
 
             response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 
-            // 3. Clear token from response body
+            // Clear token from response body (security best practice)
             authResponse.setToken(null);
+
             return ResponseEntity.ok(authResponse);
 
         } catch (ResponseStatusException ex) {
@@ -66,6 +68,11 @@ public class UserController {
                             .message(ex.getReason())
                             .build());
         }
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Map<String, String>> logout(HttpServletRequest request, HttpServletResponse response) {
+        return userService.logout(request, response);
     }
 
     @GetMapping
@@ -80,4 +87,22 @@ public class UserController {
                             .build()));
         }
     }
+
+    @GetMapping("/auth-user")
+    public ResponseEntity<UserAuthResponse> getCurrentUser(@AuthenticationPrincipal User user) {
+        // The @AuthenticationPrincipal injects the user from the JWT token
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        UserAuthResponse response = UserAuthResponse.builder()
+                .username(user.getUsername())
+                .role(user.getRole())
+                .message("Authenticated user")
+                .build();
+
+        return ResponseEntity.ok(response);
+
+    }
+
 }

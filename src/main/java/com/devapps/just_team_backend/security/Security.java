@@ -26,7 +26,7 @@ public class Security {
     private final AuthenticationProvider authenticationProvider;
 
     public Security(@Qualifier("jwtAuthenticationFilter") Filter jwtAuthFilter,
-                          AuthenticationProvider authenticationProvider) {
+                    AuthenticationProvider authenticationProvider, CorsConfigurationSource corsConfigurationSource) {
         this.jwtAuthFilter = jwtAuthFilter;
         this.authenticationProvider = authenticationProvider;
     }
@@ -45,6 +45,7 @@ public class Security {
                 ).sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
+                .logout(logout -> logout.disable())
                 .authenticationProvider(this.authenticationProvider)
                 .addFilterBefore(this.jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(urlSanitizationFilter(), UsernamePasswordAuthenticationFilter.class);
@@ -62,10 +63,14 @@ public class Security {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowCredentials(true);
         configuration.setAllowedOrigins(List.of("http://localhost:4200"));
-        configuration.addAllowedOriginPattern("*");
         configuration.addAllowedHeader("*");
         configuration.addAllowedMethod("*");
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        configuration.setAllowedHeaders(List.of("*")); // Allow all headers needed (Authorization, Content-Type, etc.)
+        configuration.setExposedHeaders(List.of("Set-Cookie", "Authorization")); // Headers frontend should be allowed to read
+        configuration.setAllowCredentials(true);
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
