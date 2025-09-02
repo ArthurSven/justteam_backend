@@ -9,6 +9,10 @@ import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
@@ -175,28 +179,9 @@ public class UserService {
         });
     }
 
-    @Cacheable(value = "usersCache")
-    public List<UserResponse> getAllUsers() {
-        try {
-            List<User> users = userRepository.findAll();
-
-            return users.stream()
-                    .map(user -> UserResponse.builder()
-                            .userid(user.getUserid())
-                            .username(user.getUsername())
-                            .firstname(user.getFirstname())
-                            .lastname(user.getLastname())
-                            .email(user.getEmail())
-                            .dob(user.getDob())
-                            .role(user.getRole())
-                            .position(user.getPosition())
-                            .startdate(user.getStartdate())
-                            .dept(user.getDept())
-                            .build())
-                    .toList();
-        } catch (ResponseStatusException rse) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,  "A problem occurred: " + rse.getLocalizedMessage());
-        }
+    @Cacheable(value = "usersCache", key = "#pageable.pageNumber + '_' + #pageable.pageSize")
+    public Page<User> getAllUsers(Pageable pageable) {
+        return userRepository.findAll(pageable);
     }
 
     @CacheEvict(value = "usersCache", allEntries = true)

@@ -4,6 +4,9 @@ import com.devapps.just_team_backend.model.user.*;
 import com.devapps.just_team_backend.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
@@ -11,9 +14,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
-
-import java.util.List;
+;
 import java.util.Map;
+
 
 @RestController
 @RequestMapping("/api/v1/user")
@@ -75,17 +78,14 @@ public class UserController {
         return userService.logout(request, response);
     }
 
-    @GetMapping
-    public ResponseEntity<List<UserResponse>> getAllUsers() {
-        try {
-            List<UserResponse> userListResponse = userService.getAllUsers();
-            return ResponseEntity.ok(userListResponse);
-        } catch (ResponseStatusException ex) {
-            return ResponseEntity.status(ex.getStatusCode())
-                    .body(List.of(UserResponse.builder()
-                            .response(ex.getReason())
-                            .build()));
-        }
+    @GetMapping("/corporate-users")
+    public ResponseEntity<Page<User>> getAllUsers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        Pageable pageable = PageRequest.of(page, size);
+        Page<User> users = userService.getAllUsers(pageable);
+        return ResponseEntity.ok(users);
     }
 
     @GetMapping("/auth-user")
